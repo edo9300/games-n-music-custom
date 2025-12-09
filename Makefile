@@ -11,13 +11,14 @@ export BLOCKSDS ?= /opt/blocksds/core
 OBJCOPY	:= $(WONDERFUL_TOOLCHAIN)/toolchain/gcc-arm-none-eabi/bin/arm-none-eabi-objcopy
 AS		:= $(WONDERFUL_TOOLCHAIN)/toolchain/gcc-arm-none-eabi/bin/arm-none-eabi-as
 CP		:= cp
+MV		:= mv
 MAKE	:= make
 MKDIR	:= mkdir
 DD		:= dd
 CAT		:= cat
 RM		:= rm -rf
 
-TARGET := GameNMusic2.nds
+TARGET := GameNMusic2
 
 # Verbose flag
 # ------------
@@ -33,18 +34,27 @@ endif
 
 .PHONY: all clean miniboot stage1
 
-all: $(TARGET)
+all: $(TARGET).nds $(TARGET)-enc.nds
 	
 
 clean:
 	@echo "  CLEAN"
-	$(_V)$(RM) build loader.frm $(TARGET)
+	$(_V)$(RM) build $(TARGET).nds $(TARGET)-enc.nds
 
-$(TARGET): build/arm9.bin
+$(TARGET).nds: build/arm9.bin
+	@echo "  BUILDING"
 	$(_V)$(BLOCKSDS)/tools/ndstool/ndstool -c $@ \
 		-7 data/arm7.bin -9 build/arm9.bin \
 		-t data/banner.bin -h data/header.bin \
 		-r9 0x02100000 -e9 0x02100800
+
+$(TARGET)-enc.nds: $(TARGET).nds
+	@echo "  ENCRYPTING"
+	$(_V)$(CP) $(TARGET).nds build/$@
+	$(_V)$(DD) if=data/secure-area.bin of=build/$@ seek=16 status=none
+	$(_V)$(DD) if=$(TARGET).nds of=build/$@ skip=36 seek=36 status=none
+	$(_V)$(MV) build/$@ $@
+	$(_V)$(BLOCKSDS)/tools/ndstool/ndstool -fh $@
 
 build/arm9.bin:
 	@$(MKDIR) -p build
