@@ -1,0 +1,3 @@
+0x18318 sdinit
+0x17eec sectorread
+0x179CC sectorwrite
