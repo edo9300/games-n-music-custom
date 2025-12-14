@@ -1,3 +1,5 @@
-0x18318 sdinit
-0x17eec sectorread
-0x179CC sectorwrite
+0x179CC sectorwrite -> max size 1312
+0x17eec sectorread -> max size 1068
+0x18318 sdinit -> max size 2132
+0x02018b18 start
+0x201936c end

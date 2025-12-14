@@ -1,15 +1,14 @@
 OUTPUT_FORMAT("elf32-littlearm")
 OUTPUT_ARCH(arm)
-ENTRY(startup)
-ENTRY(sdRead)
 ENTRY(sdWrite)
+ENTRY(getData)
 SECTIONS
 {
-    .text 0x02018b18:
+    .text 0x020181cc:
     {
-        *(.text.startup);
-        *(.text.sdRead);
         *(.text.sdWrite);
         *(.text*);
+        *(.data);
+        *(.data_ro);
     }
 }

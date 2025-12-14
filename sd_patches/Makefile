@@ -40,9 +40,9 @@ clean:
 
 sdio:
 	@$(MKDIR) -p build
-	$(_V)$(CC) -std=gnu23 -nostartfiles -nostdlib -DSTARTUP -T src/gmtf.ld -ffreestanding -ffunction-sections -I$(BLOCKSDS)/libs/libnds/include -fpic -fPIC -O3 src/gmtf.c -o build/startup.o
+	$(_V)$(CC) -std=gnu23 -nostartfiles -nostdlib -DSTARTUP -T src/startup.ld -ffreestanding -ffunction-sections -I$(BLOCKSDS)/libs/libnds/include -mthumb -mthumb-interwork -fpic -fPIC -O3 src/gmtf.c -o build/startup.o
 	$(_V)$(OBJCOPY) -O binary -j .text build/startup.o build/startup.bin
-	$(_V)$(CC) -std=gnu23 -nostartfiles -nostdlib -DSDREAD -T src/gmtf.ld -ffreestanding -ffunction-sections -I$(BLOCKSDS)/libs/libnds/include -fpic -fPIC -O3 src/gmtf.c -o build/sdRead.o
-	$(_V)$(OBJCOPY) -O binary -j .text build/sdRead.o build/sdRead.bin
-	$(_V)$(CC) -std=gnu23 -nostartfiles -nostdlib -DSDWRITE -T src/gmtf.ld -ffreestanding -ffunction-sections -I$(BLOCKSDS)/libs/libnds/include -fpic -fPIC -O3 src/gmtf.c -o build/sdWrite.o
+	$(_V)$(CC) -std=gnu23 -nostartfiles -nostdlib -DSDREAD -T src/sdRead.ld -ffreestanding -ffunction-sections -I$(BLOCKSDS)/libs/libnds/include -mthumb -mthumb-interwork -fpic -fPIC -O3 src/gmtf.c -o build/sdRead.o
+	$(_V)$(OBJCOPY) -O binary -j .text -j .data build/sdRead.o build/sdRead.bin
+	$(_V)$(CC) -std=gnu23 -nostartfiles -nostdlib -DSDWRITE -T src/sdWrite.ld -ffreestanding -ffunction-sections -I$(BLOCKSDS)/libs/libnds/include -mthumb -mthumb-interwork -fpic -fPIC -O3 src/gmtf.c -o build/sdWrite.o
 	$(_V)$(OBJCOPY) -O binary -j .text build/sdWrite.o build/sdWrite.bin

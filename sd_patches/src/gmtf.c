@@ -1,5 +1,6 @@
  #define ARM9
  #include <nds/ndstypes.h>
+ #include <nds/arm9/video.h>
  #include <nds/memory.h>
  #include <nds/card.h>
  #include <stddef.h>
@@ -16,6 +17,19 @@ static const u32 CARD_CR2_SETTINGS = (CARD_ACTIVATE | CARD_nRESET | CARD_SEC_CMD
 
 #define SPI_START 0xCC
 #define SPI_STOP 0xC8
+static inline void debug_color(u16 color)
+{
+	u16 clr = color;
+	*(vu32*)0x05000000 = clr;
+	// *(vu32*)0x05000400 = clr;
+	videoSetMode(MODE_0_2D | DISPLAY_BG0_ACTIVE);
+}
+void abort(u16 color) {
+	REG_IME = 0;
+	debug_color(color);
+	// asm volatile("mov r11,r11");
+	while(1);
+}
 
 static inline void ndsarSendNtrCommand (const u8 cmd[8], u32 romctrl)
 {
@@ -86,9 +100,13 @@ static inline u8 sendCommandLen (u8 cmdId, u32 arg, void* buff, int len)
     cmd[2] = arg >> 16;
     cmd[3] = arg >>  8;
     cmd[4] = arg >>  0;
+#ifdef STARTUP
     cmd[5] = (len > 1) ? 0x86 : 0x95; // CRC is mostly ignored in SPI mode.
 									  // Because the first CMD0 is not exactly in SPI mode,
 									  // this is the valid CRC for CMD8 with 0x1AA argument.
+#else
+	cmd[5] = 0xff;
+#endif
 
     for(int i = 0; i < sizeof(cmd); i++)
         transferSpiByte(cmd[i]);
@@ -125,15 +143,18 @@ static u8 ndsarSdcardCommandSend (u8 cmdId, u32 arg)
 
 #define GLOBAL_SD_BUFFER (uint8_t*)0x2065BCC
 
-static bool readSector (u32 sector, u8* dest)
+[[gnu::noinline]] static bool readSector (u32 sector, u8* dest)
 {
 	volatile u32 temp;
 	initSpi(SPI_START);
 	
-	bool isSdhc = *GLOBAL_SD_BUFFER != 0;
+	bool isSdhc = true;
+	if(!isSdhc)
+		sector <<= 9;
 	
-	if (sendCommand (READ_SINGLE_BLOCK, sector * (BYTES_PER_SECTOR - (511 * isSdhc))) != 0x00) {
+	if (sendCommand (READ_SINGLE_BLOCK, sector) != 0x00) {
 		initSpi(SPI_STOP);
+		abort(RGB15(15,15,0));
 		return false;
 	}
 
@@ -142,11 +163,12 @@ static bool readSector (u32 sector, u8* dest)
 
 	if (spiByte != 0xFE) {
 		initSpi(SPI_STOP);
+		abort(RGB15(0,0,15));
 		return false;
 	}
 	
-	for (int i = BYTES_PER_SECTOR; i > 0; i--) {
-		*dest++ = getSpiByte();
+	for (int i = 0; i < BYTES_PER_SECTOR; ++i) {
+		dest[i] = getSpiByte();
 	}
 
 	
@@ -154,16 +176,28 @@ static bool readSector (u32 sector, u8* dest)
 	temp = getSpiByte();
 	
 	initSpi(SPI_STOP);
+	if(sector != 0) {
+		// if(dest[0] == 0xeb)
+		abort(RGB15(0,0,15));
+		// for(int i = 0; i < 0x50; ++i){
+			// if(dest[(0x19e + i)-10] != 0)
+				// abort(i);
+		// }
+		// if(dest[0x1ff-1] == 0x55)
+			// abort(RGB15(15,0,15));
+	}
 	return true;
 }
 
-static bool writeSector (u32 sector, u8* src)
+[[gnu::noinline]] static bool writeSector (u32 sector, u8* src)
 {
 	initSpi(SPI_START);
 	
-	bool isSdhc = *GLOBAL_SD_BUFFER != 0;
+	bool isSdhc = true;
+	if(!isSdhc)
+		sector <<= 9;
 
-	if (sendCommand (WRITE_SINGLE_BLOCK, sector * (BYTES_PER_SECTOR - (511 * isSdhc))) != 0) {
+	if (sendCommand (WRITE_SINGLE_BLOCK, sector) != 0) {
 		initSpi(SPI_STOP);
 		return false;
 	}
@@ -224,7 +258,7 @@ typedef int(*volatile release_mutex_t)(void*, int);
 // {
     // REG_EXMEMCNT = (REG_EXMEMCNT & ~ARM7_OWNS_CARD) | (arm9 ? 0 : ARM7_OWNS_CARD);
 // }
-static bool ndsarSdcardInitGnm (void)
+[[gnu::noinline]] static bool ndsarSdcardInitGnm (void)
 {
 	bool isv2 = false;
     for (int i = 0; i < 0x100; i++)
@@ -239,6 +273,7 @@ static bool ndsarSdcardInitGnm (void)
     if (r1 != 0x01) // Idle State.
     {
         // CMD 0 failed.
+		abort(RGB15(15,0,0));
         return false;
     }
 	
@@ -262,6 +297,7 @@ static bool ndsarSdcardInitGnm (void)
 		}
 	}
 	if(r1 != 0) {
+		abort(RGB15(0,15,0));
 		return false;
 	}
 	
@@ -277,33 +313,75 @@ static bool ndsarSdcardInitGnm (void)
 
 #ifdef STARTUP
 
-bool startup(void) {
+ARM_CODE bool startup(void) {
 	while (acquire_mutex(MUTEX_ADDR,2) != 0);
 	sysSetCardOwner(true);
 	CONTROL_VARIABLE = 1;
 	
-	bool res = ndsarSdcardInitGnm();
+	// bool res = ndsarSdcardInitGnm();
 	
 	CONTROL_VARIABLE = 0;
 	sysSetCardOwner(false);
 	release_mutex(MUTEX_ADDR,2);
-	return res;
+	// return res;
+	return true;
 }
 
 #endif
 
 #ifdef SDREAD
 
-bool sdRead (u32 sector, u8* dest)
+ARM_CODE bool sdRead (u32 sector, u8* dest)
 {
 	while (acquire_mutex(MUTEX_ADDR,2) != 0);
 	sysSetCardOwner(true);
+	if(sector != 0) {
+		// if(dest[0] == 0xeb)
+		abort(RGB15(0,0,15));
+		// for(int i = 0; i < 0x50; ++i){
+			// if(dest[(0x19e + i)-10] != 0)
+				// abort(i);
+		// }
+		// if(dest[0x1ff-1] == 0x55)
+			// abort(RGB15(15,0,15));
+	} else {
+		for(int i = 0; i < 512; ++i) {
+			dest[i] = 0;
+		}
+		
+#if 1
+		dest[0x1BF] = 0x02;
+		dest[0x1C0] = 0x03;
+		dest[0x1C1] = 0x01;
+		dest[0x1C2] = 0x0B;
+		dest[0x1C3] = 0x30;
+		dest[0x1C4] = 0xf0;
+		dest[0x1C5] = 0xc0;
+#else
+		dest[0x1BF] = 0x82;
+		dest[0x1C0] = 0x03;
+		dest[0x1C1] = 0x00;
+		dest[0x1C2] = 0x0c;
+		dest[0x1C3] = 0xfe;
+		dest[0x1C4] = 0x7f;
+		dest[0x1C5] = 0xe1;
+#endif	
+		
+		
+		dest[0x1C7] = 0x20;
+		dest[0x1CB] = 0x0C;
+		dest[0x1CC] = 0x76;
+		
+		dest[0x1FE] = 0x55;
+		dest[0x1FF] = 0xAA;
+	}
 
-	bool res = readSector(sector, dest);
+	// bool res = readSector(sector, dest);
 
 	sysSetCardOwner(false);
 	release_mutex(MUTEX_ADDR,2);
-	return res;
+	return true;
+	// return res;
 }
 
 #endif
@@ -311,7 +389,7 @@ bool sdRead (u32 sector, u8* dest)
 
 #ifdef SDWRITE
 
-bool sdWrite (u32 sector, u8* src)
+ARM_CODE bool sdWrite (u32 sector, u8* src)
 {
 	while (acquire_mutex(MUTEX_ADDR,2) != 0);
 	sysSetCardOwner(true);
