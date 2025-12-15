@@ -32,6 +32,15 @@ entrypoint:
 	adrl r1, sd_init_end
 	ldr r2, =#0x2018b18
 	bl copy
+
+	@ This patches out the partition check to allow loading FAT partitions with a type
+	@ of 0x0C (FAT32 with LBA) and 0x0E (FAT16B with LBA), removing the checks for partition type
+	@ 0x5E (undocumented) and 0x5C (Supposedly "Priam EDisk Partitioned Volume")
+	ldr r0, =#0xe353000c @ cmp        r3,#0x0C
+	ldr r1, =#0x1353000e @ cmpne      r3,#0x0E
+	ldr r2, =#0x020196f8
+	str r0,[r2]
+	str r1,[r2, #4]
 	
 	mov r0, #0
 	mrc p15, 0, r0, c7, c6, 0
