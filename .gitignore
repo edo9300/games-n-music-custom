@@ -1,2 +1,4 @@
 build/*
+sd_patches/build/*
 *.nds
+datel_rom.bin
