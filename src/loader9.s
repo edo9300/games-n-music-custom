@@ -41,11 +41,44 @@ entrypoint:
 	ldr r2, =#0x020196f8
 	str r0,[r2]
 	str r1,[r2, #4]
+
+	@ This makes the original boot nds code call our custom function so that we can dldi patch the loaded binary
+	@ Og instruction is 06 00 00 eb 'bl #0x0201fcb8', we change it to 'bl #0x02180000'
+	
+	@correct
+	@jump to 0x02080000
+	@ ldr r0, =#0xeb0180d8
+	
+	@ ldr r0, =#0xebffe14b
+	
+	@jump to 0x23fe000
+	@ ldr r0, =#0xeb0f78d8
+
+	@jump to 0x01004600
+	@ ldr r0, =#0xebbf9258
+
+	@jump to 0x02180000
+	ldr r0, =#0xeb0580d8
+
+	
+	ldr r1, =#0x0201fc98
+	str r0,[r1]
+
+	adrl r0, dldi_patch_start
+	adrl r1, dldi_patch_end
+	ldr r2, =#0x2180000
+	bl copy
+
+	adrl r0, dldi_start
+	add r1, r0, #0x8000
+	ldr r2, =#0x2188000
+	bl copy
 	
 	mov r0, #0
 	mrc p15, 0, r0, c7, c6, 0
 	mov r0, #0
 	mrc p15, 0, r0, c7, c5, 0
+
 	bx r4
 
 copy:
@@ -75,3 +108,13 @@ sd_read_end:
 sd_init_start:
 .incbin "startup.bin"
 sd_init_end:
+
+.balign 4, 0xff
+dldi_patch_start:
+.incbin "dldi_patch.bin"
+dldi_patch_end:
+
+.balign 4, 0xff
+dldi_start:
+.incbin "dldi.bin"
+dldi_end:
