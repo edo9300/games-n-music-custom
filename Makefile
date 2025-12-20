@@ -8,16 +8,18 @@ export BLOCKSDS ?= /opt/blocksds/core
 # Tools
 # -----
 
-OBJCOPY	:= $(WONDERFUL_TOOLCHAIN)/toolchain/gcc-arm-none-eabi/bin/arm-none-eabi-objcopy
-AS		:= $(WONDERFUL_TOOLCHAIN)/toolchain/gcc-arm-none-eabi/bin/arm-none-eabi-as
-NPACK	:= $(WONDERFUL_TOOLCHAIN)/bin/wf-nnpack-lzss
-CP		:= cp
-MV		:= mv
-MAKE	:= make
-MKDIR	:= mkdir
-DD		:= dd
-CAT		:= cat
-RM		:= rm -rf
+OBJCOPY	  := $(WONDERFUL_TOOLCHAIN)/toolchain/gcc-arm-none-eabi/bin/arm-none-eabi-objcopy
+AS		  := $(WONDERFUL_TOOLCHAIN)/toolchain/gcc-arm-none-eabi/bin/arm-none-eabi-as
+NPACK	  := $(WONDERFUL_TOOLCHAIN)/bin/wf-nnpack-lzss
+DLDIPATCH := $(BLOCKSDS)/tools/dldipatch/dldipatch
+NDSTOOL   := $(BLOCKSDS)/tools/ndstool/ndstool
+CP		  := cp
+MV		  := mv
+MAKE	  := make
+MKDIR	  := mkdir
+DD		  := dd
+CAT		  := cat
+RM		  := rm -rf
 
 TARGET := GameNMusic2
 
@@ -45,11 +47,12 @@ clean:
 
 $(TARGET).nds: build/arm9.bin build/arm7.bin
 	@echo "  BUILDING"
-	$(_V)$(BLOCKSDS)/tools/ndstool/ndstool -c $@ \
+	$(_V)$(NDSTOOL) -c $@ \
 		-7 build/arm7.bin -9 build/arm9.bin \
 		-t data/banner.bin -h data/header.bin \
 		-r9 0x02100000 -e9 0x02100800 \
 		-r7 0x02380000 -e7 0x02380000
+	$(_V)$(DLDIPATCH) patch dldi/gmtf.dldi $@
 
 $(TARGET)-enc.nds: $(TARGET).nds
 	@echo "  ENCRYPTING"
@@ -57,7 +60,7 @@ $(TARGET)-enc.nds: $(TARGET).nds
 	$(_V)$(DD) if=data/secure-area.bin of=build/$@ seek=16 status=none
 	$(_V)$(DD) if=$(TARGET).nds of=build/$@ skip=36 seek=36 status=none
 	$(_V)$(MV) build/$@ $@
-	$(_V)$(BLOCKSDS)/tools/ndstool/ndstool -fh $@
+	$(_V)$(NDSTOOL) -fh $@
 	$(_V)$(CP) $@ gnm-backup.bin
 
 build/arm9-c.bin: data/arm9.bin
@@ -79,8 +82,8 @@ sd_patches:
 	$(_V)$(MAKE) -C sd_patches
 
 miniboot9:
-	$(_V)$(MAKE) -C nds-miniboot arm9_nobootstub
-	$(_V)$(CP) nds-miniboot/build/arm9_nobootstub.bin build/arm9miniboot.bin
+	$(_V)$(MAKE) -C nds-miniboot arm9plus
+	$(_V)$(CP) nds-miniboot/build/arm9plus.bin build/arm9miniboot.bin
 
 miniboot7:
 	$(_V)$(MAKE) -C nds-miniboot arm7

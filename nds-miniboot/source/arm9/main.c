@@ -182,11 +182,14 @@ int main(void) {
             while(1);
         }
     }
+	
+	const char fat[] = {'f', 'a', 't', ':'};
 
     // Set up argv.
     DKA_ARGV->cmdline = (char*) 0x2FFFEB0;
-    DKA_ARGV->cmdline_size = strlen(executable_path) + 1;
-    __aeabi_memcpy(DKA_ARGV->cmdline, executable_path, DKA_ARGV->cmdline_size);
+    DKA_ARGV->cmdline_size = sizeof(fat) + strlen(executable_path) + 1;
+    __aeabi_memcpy(sizeof(fat) + DKA_ARGV->cmdline, executable_path, DKA_ARGV->cmdline_size - sizeof(fat));
+    __aeabi_memcpy(DKA_ARGV->cmdline, fat, sizeof(fat));
     DKA_ARGV->magic = DKA_ARGV_MAGIC;
 
     dprintf("Launching");
