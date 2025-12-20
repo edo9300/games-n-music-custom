@@ -33,7 +33,7 @@ endif
 # Build rules
 # -----------
 
-.PHONY: all clean sd_patches dldi_boot
+.PHONY: all clean sd_patches dldi_boot miniboot9 miniboot7
 
 all: $(TARGET)-enc.nds
 	
@@ -41,7 +41,7 @@ clean:
 	@echo "  CLEAN"
 	$(_V)$(RM) build $(TARGET).nds $(TARGET)-enc.nds gnm-backup.bin
 	$(_V)$(MAKE) -C sd_patches clean
-	$(_V)$(MAKE) -C dldi_boot clean
+	$(_V)$(MAKE) -C nds-miniboot clean
 
 $(TARGET).nds: build/arm9.bin build/arm7.bin
 	@echo "  BUILDING"
@@ -64,19 +64,24 @@ build/arm9-c.bin: data/arm9.bin
 	@$(MKDIR) -p build
 	$(_V)$(NPACK) -ewo data/arm9.bin build/arm9-c.bin
 
-build/arm9.bin: sd_patches dldi_boot build/arm9-c.bin
+build/arm9.bin: sd_patches build/arm9-c.bin src/loader9.s miniboot9
 	@$(MKDIR) -p build
-	$(_V)$(AS) -I src -I build -I sd_patches/build -I dldi_boot/build src/loader9.s -o build/loader9.out
+	$(_V)$(AS) -I src -I build -I sd_patches/build src/loader9.s -o build/loader9.out
 	$(_V)$(OBJCOPY) -O binary build/loader9.out build/loader9.frm
 	$(_V)$(CAT) data/bare-entrypoint.bin build/loader9.frm > build/arm9.bin
 
-build/arm7.bin: data/arm7.bin
+build/arm7.bin: data/arm7.bin src/loader7.s miniboot7
 	@$(MKDIR) -p build
-	$(_V)$(AS) -I data -I sd_patches/build src/loader7.s -o build/loader7.out
+	$(_V)$(AS) -I data -I build -I sd_patches/build src/loader7.s -o build/loader7.out
 	$(_V)$(OBJCOPY) -O binary build/loader7.out build/arm7.bin
 
 sd_patches:
 	$(_V)$(MAKE) -C sd_patches
 
-dldi_boot:
-	$(_V)$(MAKE) -C dldi_boot
+miniboot9:
+	$(_V)$(MAKE) -C nds-miniboot arm9_nobootstub
+	$(_V)$(CP) nds-miniboot/build/arm9_nobootstub.bin build/arm9miniboot.bin
+
+miniboot7:
+	$(_V)$(MAKE) -C nds-miniboot arm7
+	$(_V)$(CP) nds-miniboot/build/arm7.bin build/arm7miniboot.bin

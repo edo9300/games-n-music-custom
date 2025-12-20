@@ -1,4 +1,5 @@
 build/*
 sd_patches/build/*
+nds-miniboot/build/*
 *.nds
 gnm-backup.bin

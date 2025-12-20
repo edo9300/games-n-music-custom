@@ -4,18 +4,11 @@
 // Copyright (c) 2006 Michael Chisholm (Chishm) and Tim Seidel (Mighty Max).
 // Copyright (c) 2024 Adrian "asie" Siekierka
 
-#include "aeabi.h"
-#include <stdint.h>
-#define ARM9
-#include <nds.h>
 #include "dldi_patch.h"
+#include "aeabi.h"
+#include "console.h"
 
 #define XOR_CONSTANT_VALUE 0xAA55AA55
-[[gnu::noinline]] uint32_t xor_constant(uint32_t a, uint32_t b) {
-	asm volatile("");
-	return a ^ b;
-}
-
 #define OBFUSCATED_COMPARE(a, b) \
 	(xor_constant(a, XOR_CONSTANT_VALUE) == (( \
 		(((b) & 0xFF000000) >> 24) | \
@@ -91,26 +84,13 @@ static void dldi_relocate(DLDI_INTERFACE *io, void *targetAddress) {
         __aeabi_memset(io->bssStart, (uint8_t*) io->bssEnd - (uint8_t*) io->bssStart, 0);
     }
 }
-static inline void debug_color(u16 color)
-{
-	u16 clr = color;
-	*(vu32*)0x05000000 = clr;
-	// *(vu32*)0x05000400 = clr;
-	videoSetMode(MODE_0_2D | DISPLAY_BG0_ACTIVE);
-}
-void abortt(u16 color) {
-	REG_IME = 0;
-	debug_color(color);
-	// asm volatile("mov r11,r11");
-	// while(1);
-}
 
-static int dldi_patch_relocate(void *buffer, uint32_t size, DLDI_INTERFACE *driver) {
+int dldi_patch_relocate(void *buffer, uint32_t size, DLDI_INTERFACE *driver) {
     uint32_t *data = (uint32_t*) buffer;
-	abortt(RGB15(15,0,0));
     for (; size; size -= 4, data++) {
         // Obfuscate the constants, so that DLDI patchers don't catch the DLDI patching code.
         if (OBFUSCATED_COMPARE(data[0], 0xEDA58DBF) && OBFUSCATED_COMPARE(data[1], 0x20436869) && OBFUSCATED_COMPARE(data[2], 0x73686d00)) {
+            dprintf("DLDI found at %d\n", (uint8_t*)data - (uint8_t*)buffer);
             DLDI_INTERFACE *target = (DLDI_INTERFACE*) data;
 
             uint8_t allocatedSize = target->allocatedSize;
@@ -122,22 +102,10 @@ static int dldi_patch_relocate(void *buffer, uint32_t size, DLDI_INTERFACE *driv
             // does not always contain it, to evade auto-DLDI patchers in previous stage bootloaders.
             __aeabi_memcpy(((uint8_t*) target) + 4, ((uint8_t*) driver) + 4, (1 << allocatedSize) - 4);
             target->allocatedSize = allocatedSize;
-			abortt(RGB15(0,15,0));
             dldi_relocate(target, targetAddress);
             return DLPR_OK;
         }
     }
 
     return DLPR_OK;
-}
-typedef void(*volatile relocate_and_jump_t)(void*);
-
-#define relocate_and_jump(a) (*(relocate_and_jump_t)0x201fcb8)(a)
-#define NDSHeader ((tNDSHeader *)0x027FFE00)
-
-void patch_and_jump(void* arm9Buff) {
-	abortt(RGB15(0,0,15));
-	dldi_patch_relocate(arm9Buff, NDSHeader->arm9binarySize, (DLDI_INTERFACE*)0x02188000);
-	abortt(RGB15(15,15,0));
-	relocate_and_jump(arm9Buff);
 }

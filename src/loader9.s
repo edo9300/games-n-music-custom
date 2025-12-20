@@ -43,35 +43,32 @@ entrypoint:
 	str r1,[r2, #4]
 
 	@ This makes the original boot nds code call our custom function so that we can dldi patch the loaded binary
-	@ Og instruction is 06 00 00 eb 'bl #0x0201fcb8', we change it to 'bl #0x02180000'
-	
-	@correct
-	@jump to 0x02080000
-	@ ldr r0, =#0xeb0180d8
-	
-	@ ldr r0, =#0xebffe14b
-	
-	@jump to 0x23fe000
-	@ ldr r0, =#0xeb0f78d8
+	@ Og instruction is a5 ee ff eb 'bl #0x0201b664', we change it to 'bl #0x02240000'
 
-	@jump to 0x01004600
-	@ ldr r0, =#0xebbf9258
-
-	@jump to 0x02180000
-	ldr r0, =#0xeb0580d8
-
-	
-	ldr r1, =#0x0201fc98
+	@jump to 0x02240000
+	ldr r0, =#0xeb08810c
+	ldr r1, =#0x0201fbc8
 	str r0,[r1]
 
-	adrl r0, dldi_patch_start
-	adrl r1, dldi_patch_end
-	ldr r2, =#0x2180000
-	bl copy
 
-	adrl r0, dldi_start
-	add r1, r0, #0x8000
-	ldr r2, =#0x2188000
+	@ The run nds function takes the filename as 2nd argument (r1)
+	@ its pointer is then moved to r3, and later moved again to r2 to perform a function call.
+	@ To preserve the value across this function call, we store it in r4, so that when our code
+	@ is run, it is still available
+	@ mov r3,r1 changed to r4,r1
+	ldr r0, =#0xe1a04001
+	ldr r1, =#0x0201fb90
+	str r0,[r1]
+
+	@ mov r2,r3 changed to r2,r4
+	ldr r0, =#0xe1a02004
+	ldr r1, =#0x0201fba0
+	str r0,[r1]
+	
+
+	adrl r0, miniboot_arm9_start
+	adrl r1, miniboot_arm9_end
+	ldr r2, =#0x02240000
 	bl copy
 	
 	mov r0, #0
@@ -91,10 +88,6 @@ copy:
 .pool
 
 .balign 4, 0xff
-arm9_payload:
-.incbin "arm9-c.bin"
-
-.balign 4, 0xff
 sd_write_start:
 .incbin "sdWrite.bin"
 sd_write_end:
@@ -110,11 +103,24 @@ sd_init_start:
 sd_init_end:
 
 .balign 4, 0xff
-dldi_patch_start:
-.incbin "dldi_patch.bin"
-dldi_patch_end:
+miniboot_arm9_start:
+
+add r1,r4,#256
+ldr r2,=#0x02000000
+1:
+	ldr r3, [r4], # 4
+	str r3, [r2], # 4
+	cmp r4, r1
+	blt 1b
+ldr r0,=#0x027FF000
+ldr r1,=#0x0D15EA5E
+str r1,[r0,#0x0]
+b 1f
+.pool
+1:
+.incbin "arm9miniboot.bin"
+miniboot_arm9_end:
 
 .balign 4, 0xff
-dldi_start:
-.incbin "dldi.bin"
-dldi_end:
+arm9_payload:
+.incbin "arm9-c.bin"
