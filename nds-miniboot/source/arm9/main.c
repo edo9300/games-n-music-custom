@@ -57,7 +57,8 @@ void ipc_arm7_cmd(uint32_t cmd) {
 char executable_path[256];
 
 int main(void) {
-	__aeabi_memcpy(executable_path, (void*)0x02000000, 256);
+	bool always_patch = (*(volatile uint32_t*)0x02000000) != 0;
+	__aeabi_memcpy(executable_path, (void*)0x02000004, 256);
     FIL fp;
     unsigned int bytes_read;
     int result;
@@ -83,7 +84,6 @@ int main(void) {
     debugEnabled = !(REG_KEYINPUT & KEY_START);
 #endif
 #endif
-
     dprintf("ARM7 sync");
     for (int i = 1; i <= 16; i++) {
         dprintf(".");
@@ -173,7 +173,7 @@ int main(void) {
         checkErrorFatFs("Could not read BOOT.NDS", f_read(&fp, (void*) NDS_HEADER->arm9_start, NDS_HEADER->arm9_size, &bytes_read));
 
         // Try to apply the DLDI driver patch.
-        result = dldi_patch_relocate((void*) NDS_HEADER->arm9_start, NDS_HEADER->arm9_size, DLDI_BACKUP);
+        result = dldi_patch_relocate((void*) NDS_HEADER->arm9_start, NDS_HEADER->arm9_size, DLDI_BACKUP, always_patch);
         if (result) {
             eprintf("Failed to apply DLDI patch.\n");
             switch (result) {

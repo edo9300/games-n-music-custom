@@ -10,11 +10,11 @@
 
 #define XOR_CONSTANT_VALUE 0xAA55AA55
 #define OBFUSCATED_COMPARE(a, b) \
-	(xor_constant(a, XOR_CONSTANT_VALUE) == (( \
-		(((b) & 0xFF000000) >> 24) | \
-		(((b) & 0xFF0000) >> 8) | \
-		(((b) & 0xFF00) << 8) | \
-		(((b) & 0xFF) << 24)) ^ XOR_CONSTANT_VALUE))
+    (xor_constant(a, XOR_CONSTANT_VALUE) == (( \
+        (((b) & 0xFF000000) >> 24) | \
+        (((b) & 0xFF0000) >> 8) | \
+        (((b) & 0xFF00) << 8) | \
+        (((b) & 0xFF) << 24)) ^ XOR_CONSTANT_VALUE))
 
 static void dldi_relocate(DLDI_INTERFACE *io, void *targetAddress) {
     uint32_t offset;
@@ -35,7 +35,7 @@ static void dldi_relocate(DLDI_INTERFACE *io, void *targetAddress) {
     // if the BSS section is valid.
     prevAddrAllocEnd = io->dldiEnd;
     if (io->bssStart >= prevAddrStart && io->bssStart < prevAddrSpaceEnd
-	&& io->bssEnd > io->dldiEnd && io->bssEnd <= prevAddrSpaceEnd)
+    && io->bssEnd > io->dldiEnd && io->bssEnd <= prevAddrSpaceEnd)
         prevAddrAllocEnd = io->bssEnd;
 
     // Correct all pointers to the offsets from the location of this interface
@@ -85,7 +85,9 @@ static void dldi_relocate(DLDI_INTERFACE *io, void *targetAddress) {
     }
 }
 
-int dldi_patch_relocate(void *buffer, uint32_t size, DLDI_INTERFACE *driver) {
+char default_dldi[] = "Default (No interface)";
+
+int dldi_patch_relocate(void *buffer, uint32_t size, DLDI_INTERFACE *driver, bool always_patch) {
     uint32_t *data = (uint32_t*) buffer;
     for (; size; size -= 4, data++) {
         // Obfuscate the constants, so that DLDI patchers don't catch the DLDI patching code.
@@ -95,6 +97,9 @@ int dldi_patch_relocate(void *buffer, uint32_t size, DLDI_INTERFACE *driver) {
 
             uint8_t allocatedSize = target->allocatedSize;
             if (allocatedSize < driver->driverSize) return DLPR_NOT_ENOUGH_SPACE;
+
+            if(!always_patch && memcmp(target->friendlyName, default_dldi, sizeof(default_dldi)) != 0)
+                return DLPR_OK;
 
             void *targetAddress = target->dldiStart;
 

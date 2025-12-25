@@ -80,8 +80,8 @@ entrypoint:
 
 copy:
 1:
-	ldr r3, [r0], # 4
-	str r3, [r2], # 4
+	ldr r3, [r0], #4
+	str r3, [r2], #4
 	cmp r0, r1
 	blt 1b
 	bx lr
@@ -104,17 +104,20 @@ sd_init_end:
 
 .balign 4, 0xff
 miniboot_arm9_start:
-
-add r1,r4,#256
-ldr r2,=#0x02000000
+ldr r2, =#0x02000000
+ldr r0, =#0x02030320
+sub r0, r4
+str r0, [r2], #4
+add r1, r4, #256
 1:
-	ldr r3, [r4], # 4
-	str r3, [r2], # 4
+	ldr r3, [r4], #4
+	str r3, [r2], #4
 	cmp r4, r1
 	blt 1b
-ldr r0,=#0x027FF000
-ldr r1,=#0x0D15EA5E
-str r1,[r0,#0x0]
+
+ldr r0, =#0x027FF000
+ldr r1, =#0x0D15EA5E
+str r1, [r0]
 b 1f
 .pool
 1:

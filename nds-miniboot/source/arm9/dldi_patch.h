@@ -19,6 +19,6 @@
  * @param driver Source DLDI driver.
  * @return int The error code, if any.
  */
-int dldi_patch_relocate(void *buffer, uint32_t size, DLDI_INTERFACE *driver);
+int dldi_patch_relocate(void *buffer, uint32_t size, DLDI_INTERFACE *driver, bool always_patch);
 
 #endif /* __DLDI_PATCH_H__ */
