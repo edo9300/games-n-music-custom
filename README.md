@@ -22,6 +22,11 @@ compression during the build step, it then applies various patches to it:
  using an "unkonwn" partition type (still compatible with the og firmware).
  - The nds loader is replaced by nds-miniboot, offering auto dldi patching and argv passing.
 
+## Installing
+Download either artifact from [the releases](https://github.com/edo9300/game-n-music-custom/releases/latest)
+and flash it to your games n' music with [datel Tool](https://github.com/ApacheThunder/datelTool)
+(or you can also launch the .nds directly from a slot 2 flashcart with the games n' music inserted)
+
 ## Compiling
 A Wonderful toolchain+blocksds setup is required with the following packages installed:
 wf-nnpack
